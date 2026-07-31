@@ -106,7 +106,7 @@ renderer.setSize(
 );
 
 document.body.appendChild(renderer.domElement);
-
+renderer.domElement.style.touchAction = "none";
 
 // Camera position
 camera.position.z = 5;
@@ -128,11 +128,23 @@ scene.add(light);
 
 
 // Click interaction
-window.addEventListener("click", (event) => {
+function handleInteraction(event: MouseEvent | TouchEvent) {
 
-  // Convert mouse position to Three.js coordinates
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  // Get the touch/click location
+  let clientX: number;
+  let clientY: number;
+
+  if (event instanceof TouchEvent) {
+    clientX = event.touches[0].clientX;
+    clientY = event.touches[0].clientY;
+  } else {
+    clientX = event.clientX;
+    clientY = event.clientY;
+  }
+
+  // Convert screen coordinates to Three.js coordinates
+  mouse.x = (clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
 
   // Shoot ray from camera
@@ -140,29 +152,55 @@ window.addEventListener("click", (event) => {
 
 
   // Check what was clicked
-  const intersects = raycaster.intersectObjects(scene.children);
+  const intersects = raycaster.intersectObjects(
+    scene.children,
+    true
+  );
 
 
   if (intersects.length > 0) {
 
-    if (intersects[0].object.parent === character && !jumping) {
+    const clickedObject = intersects[0].object;
+
+
+    // Check if we clicked the character
+    if (clickedObject.parent === character && !jumping) {
 
       jumping = true;
       velocity = 0.3;
 
-      //pick a random landing position on the floor
+
+      // Pick random landing position
       targetX = (Math.random() - 0.5) * 6;
       targetZ = (Math.random() - 0.5) * 6;
 
+
       // Squash before jumping
-      character.scale.set(1.3, 0.7, 1.3);
+      character.scale.set(
+        1.3,
+        0.7,
+        1.3
+      );
 
     }
 
   }
 
-});
+}
 
+
+// Mouse click
+window.addEventListener(
+  "click",
+  handleInteraction
+);
+
+
+// Touch screen tap
+window.addEventListener(
+  "touchstart",
+  handleInteraction
+);
 
 //add a splash effect 
 function createSplash() {
