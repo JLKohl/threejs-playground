@@ -1,356 +1,197 @@
+// Import everything from Three.js and make it available through THREE
 import * as THREE from 'three';
 
-let jumping = false;
-let landing = false;
-let velocity = 0;
+// ====================
+// BACKGROUND
+// ====================
 
-let targetX = 0;
-let targetZ = 0;
+//create the geomety for our background
+//(with, height),  plane geometry is a flat surface that 
+//can be used to create backgrounds or other flat objects in 3D space.
 
-const gravity = -0.02;
+const backgroundGeometry = new THREE.PlaneGeometry(20, 12); 
 
-const droplets: {
-  mesh: THREE.Mesh;
-  velocity: THREE.Vector3;
-}[] = [];
+//give the background a color
+// anything with "material" is giving the object a color or texture, 
+//and "basic" means it won't be affected by lights in the scene.
 
-// Create a scene
+const backgroundMaterial = new THREE.MeshStandardMaterial({
+
+  color: 0x87CEEB, // light blue color
+
+})
+
+//compainthe geometry and material to create a mesh,
+//which is the actual object that will be rendered in the scene.
+
+const background = new THREE.Mesh(
+  backgroundGeometry,
+  backgroundMaterial
+)
+
+background.receiveShadow = true; //allow the background to receive shadows from other objects
+
+// ====================
+// SUN
+// ====================
+
+//Create the geometry for the sun using Cylinder for cardboard depth
+const sunGeometry = new THREE.CylinderGeometry(
+  1, // radius top
+  1, // radius bottom
+  0.03, // height(or thickness) of the cylinder
+  20 // segments (determines how smooth the cylinder will be, more segments = smoother)
+); 
+
+
+//using mesh Standasrd se we get a shadown on the background
+const sunMaterial = new THREE.MeshStandardMaterial({
+  color: 0xFFD700, // gold color
+})
+
+//create the sun mesh
+const sun = new THREE.Mesh(
+  sunGeometry,
+  sunMaterial
+)
+
+//allow the sun to cast shadows onto other objects in the scene
+sun.castShadow = true;
+
+sun.rotation.x = Math.PI / 2;
+
+//creating a sun and string group so we can pivot from one spot
+const sunPivot = new THREE.Group();
+
+//Position the pivot where the string is attached
+sunPivot.position.set(-3, 4.15, 0.35); //(x, y, z) position of the pivot in the scene
+
+//sun position in the scene
+//-4 is the x witch moves left and right 
+//2 is the y witch moves up and down
+// 0.1 is the z witch controls depth
+sun.position.set(0, -3, 0.05); 
+
+// ====================
+// SUN STRING
+// ====================
+
+//create a string for the sun 
+
+const stringGeometry = new THREE.CylinderGeometry(
+  0.02, // top radius
+  0.02, // bottom radius
+  2,    // length of the string
+  8     // segments
+)
+
+//give th string a color
+const stringMaterial = new THREE.MeshStandardMaterial({
+  color: 0x8c876d, // dark gray color
+});
+
+const sunString = new THREE.Mesh(
+  stringGeometry,
+  stringMaterial
+);  
+
+sunString.position.set(0, -1, 0); //(x, y, z) position of the string in the scene
+
+// ====================
+// LIGHT
+// ====================
+
+//create a light source to illuminate the scene
+const light = new THREE.DirectionalLight(
+  0xFFFFFF, // white light
+  3, // intensity
+)
+
+//add soft ambient light to the scene to make the shadows less harsh
+const ambientLight = new THREE.AmbientLight(
+  0xFFFFFF, // white light
+  0.5, // intensity
+)
+
+light.position.set(0, 2, 5); // position the light in front of the sun for now (x, y, z)
+
+//allow light to cast shadows onto other objects in the scene
+light.castShadow = true;
+
+// Improve the quality of the shadow
+light.shadow.mapSize.width = 4096;
+light.shadow.mapSize.height = 4096;
+
+// Soften the shadow edges
+light.shadow.radius = 10;
+
+// ====================
+// SCENE
+// ====================
+
+//creating a scene which is 
+//the stage where all the objects will be placed and rendered.
+
 const scene = new THREE.Scene();
 
-// Create a camera
+//add to sunPivot
+sunPivot.add(sun);
+sunPivot.add(sunString);
+
+//add to the scene
+scene.add(background);
+scene.add(sunPivot);
+scene.add(light);
+scene.add(ambientLight);
+
+//create a camera to view the scene
 const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
+  75, // field of view
+  window.innerWidth / window.innerHeight, // aspect ratio
+  0.1, // near clipping plane
+  1000 // far clipping plane
+)
 
-// Raycasting (click detection)
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+// Move the camera in front of the background
+camera.position.z = 5;
 
+//renderer is what will actually draw the scene onto the screen
+//create a renderer and set its size to fill the window
 
-// Create character
-const character = new THREE.Group();
-scene.add(character);
-
-const bodyGeometry = new THREE.CylinderGeometry(
-  0.30,  // top radius
-  0.45,  // bottom radius
-  .75,     // height
-  15
-);
-
-const bodyMaterial = new THREE.MeshStandardMaterial({
-  color: 0xf0a3e5
-});
-
-const body = new THREE.Mesh(
-  bodyGeometry,
-  bodyMaterial
-);
-
-body.position.y = 0.5;
-
-character.add(body);
-
-//add a head
-const headGeometry = new THREE.SphereGeometry(
-  0.30,
-  32,
-  32
-);
-
-const headMaterial = new THREE.MeshStandardMaterial({
-  color: 0xf0a3e5
-});
-
-const head = new THREE.Mesh(
-  headGeometry,
-  headMaterial
-);
-
-head.position.y = 1.2;
-
-character.add(head);
-
-
-// Create floor
-const floorGeometry = new THREE.PlaneGeometry(10, 10);
-
-const floorMaterial = new THREE.MeshStandardMaterial({
-  color: 0x87ceeb,
-  side: THREE.DoubleSide
-});
-
-const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-
-floor.rotation.x = -Math.PI / 2;
-
-scene.add(floor);
-
-// Floor receives shadows
-floor.receiveShadow = true;
-
-
-// Create renderer
 const renderer = new THREE.WebGLRenderer({
-  antialias: true
+  antialias: true, // smooth edges
+  alpha: true, // allow transparency
 });
 
-renderer.shadowMap.enabled = true;
+// enable shadows
+renderer.shadowMap.enabled = true; 
 
+//set the size of the renderer to fill the window
 renderer.setSize(
-  window.innerWidth,
+  window.innerWidth, 
   window.innerHeight
 );
 
+//add the renderer's canvas element to the website
 document.body.appendChild(renderer.domElement);
-renderer.domElement.style.touchAction = "none";
 
-// Camera position
-camera.position.z = 5;
-camera.position.y = 3;
+//make the Three.js canvas fill the entire browser window
+document.body.style.margin = '0';//no margin
+document.body.style.overflow = 'hidden';//no scrollbars
 
-camera.lookAt(character.position);
+//draw the scene from the perspective of the camera
+// renderer.render(scene, camera);
 
+//changing the render to animate the scene
 
-// Lighting
-const light = new THREE.DirectionalLight(
-  0xffffff,
-  2
-);
-
-light.position.set(3, 5, 2);
-light.castShadow = true;
-
-scene.add(light);
-
-
-// Click interaction
-function handleInteraction(event: MouseEvent | TouchEvent) {
-
-  // Get the touch/click location
-  let clientX: number;
-  let clientY: number;
-
-  if (event instanceof TouchEvent) {
-    clientX = event.touches[0].clientX;
-    clientY = event.touches[0].clientY;
-  } else {
-    clientX = event.clientX;
-    clientY = event.clientY;
-  }
-
-  // Convert screen coordinates to Three.js coordinates
-  mouse.x = (clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-
-
-  // Shoot ray from camera
-  raycaster.setFromCamera(mouse, camera);
-
-
-  // Check what was clicked
-  const intersects = raycaster.intersectObjects(
-    scene.children,
-    true
-  );
-
-
-  if (intersects.length > 0) {
-
-    const clickedObject = intersects[0].object;
-
-
-    // Check if we clicked the character
-    if (clickedObject.parent === character && !jumping) {
-
-      jumping = true;
-      velocity = 0.3;
-
-
-      // Pick random landing position
-      targetX = (Math.random() - 0.5) * 6;
-      targetZ = (Math.random() - 0.5) * 6;
-
-
-      // Squash before jumping
-      character.scale.set(
-        1.3,
-        0.7,
-        1.3
-      );
-
-    }
-
-  }
-
-}
-
-
-// Mouse click
-window.addEventListener(
-  "click",
-  handleInteraction
-);
-
-
-// Touch screen tap
-window.addEventListener(
-  "touchstart",
-  handleInteraction
-);
-
-//add a splash effect 
-function createSplash() {
-
-  for (let i = 0; i < 250; i++) {
-
-    const geometry = new THREE.CapsuleGeometry(
-      0.03,
-      0.05,
-      4,
-      8
-    );
-
-    const material = new THREE.MeshBasicMaterial({
-      color: 0x87ceeb
-    });
-
-    const droplet = new THREE.Mesh(
-      geometry,
-      material
-    );
-
-    droplet.scale.y = 1.5;
-
-    droplet.rotation.x = Math.random() * Math.PI;
-    droplet.rotation.z = Math.random() * Math.PI;
-
-
-    droplet.position.set(
-      character.position.x,
-      0.05,
-      character.position.z
-    );
-
-
-    const direction = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.1,
-      Math.random() * 0.15 + 0.05,
-      (Math.random() - 0.5) * 0.1
-    );
-
-
-    droplets.push({
-      mesh: droplet,
-      velocity: direction
-    });
-
-
-    scene.add(droplet);
-
-  }
-
-}
-
-
-// Animation loop
 function animation() {
 
   requestAnimationFrame(animation);
 
-
-  // Jumping
-  if (jumping) {
-
-    character.position.y += velocity;
-
-    character.position.x += (targetX - character.position.x) * 0.05;
-    character.position.z += (targetZ - character.position.z) * 0.05;
-
-    velocity += gravity;
-
-
-    // Stretch while going upward
-    if (velocity > 0) {
-
-      character.scale.set(
-        0.8,
-        1.3,
-        0.8
-      );
-
-    }
-
-
-    // Landing
-    if (character.position.y <= 0.5) {
-
-      character.position.y = 0.5;
-
-      jumping = false;
-      landing = true;
-
-      velocity = 0;
-
-
-      // Landing squash
-      character.scale.set(
-        1.3,
-        0.7,
-        1.3
-      );
-
-      createSplash();
-
-
-      // Reset rotation
-      character.rotation.set(0, 0, 0);
-
-    }
-
-  }
-
-
-  // Recover from landing squash
-  if (landing) {
-
-    character.scale.x += (1 - character.scale.x) * 0.1;
-    character.scale.y += (1 - character.scale.y) * 0.1;
-    character.scale.z += (1 - character.scale.z) * 0.1;
-
-
-    if (
-      Math.abs(character.scale.x - 1) < 0.01 &&
-      Math.abs(character.scale.y - 1) < 0.01
-    ) {
-
-      character.scale.set(1, 1, 1);
-
-      landing = false;
-
-    }
-
-  }
-
-  //droplets animation
-  droplets.forEach((droplet) => {
-
-    droplet.mesh.position.add(
-      droplet.velocity
-    );
-  
-    droplet.velocity.y -= 0.01;
-  
-  });
-
-
+  sunPivot.rotation.z = 0.1;
 
   renderer.render(scene, camera);
 
 }
-
 
 animation();
