@@ -2,6 +2,18 @@
 import * as THREE from 'three';
 
 // ====================
+// VARIABLES
+// ====================
+let sunSwing = 0; // variable to track the swing of the sun
+let sunSwingVelocity = 0;
+
+//raycaster to sense mouse movement
+const raycaster = new THREE.Raycaster();
+
+//Store the mouse position
+const mouse = new THREE.Vector2();
+
+// ====================
 // BACKGROUND
 // ====================
 
@@ -32,6 +44,116 @@ const background = new THREE.Mesh(
 background.receiveShadow = true; //allow the background to receive shadows from other objects
 
 // ====================
+// CARDBOARD HILL
+// ====================
+
+// Create the shape of the hill
+const hillShape = new THREE.Shape();
+
+hillShape.moveTo(-10, 0);       // bottom left
+hillShape.lineTo(-10, 1);       // left side
+hillShape.quadraticCurveTo(
+  0, 5,                           // control point
+  9, 2                            // end point
+);
+hillShape.lineTo(10, 0);        // bottom right
+hillShape.lineTo(-10, 0);       // close the shape
+
+// Turn the hill shape into 3D geometry
+// Give the hill cardboard-like depth
+const hillGeometry = new THREE.ExtrudeGeometry(
+  hillShape,
+  {
+    depth: 0.1,      // thickness of the cardboard
+    bevelEnabled: false
+  }
+);
+
+// Give the hill a green cardboard color
+const hillMaterial = new THREE.MeshStandardMaterial({
+  color: 0x82ab6c
+});
+
+// Create the hill mesh
+const hill = new THREE.Mesh(
+  hillGeometry,
+  hillMaterial
+);
+
+hill.position.set(0, -4, 0.6);
+
+// ====================
+// COTTON CLOUD
+// ====================
+
+//making a function so we can generate random cloud puff shapes
+function createCloudPuff() {
+
+  const cloudPuffGeometry = new THREE.SphereGeometry(
+    0.6, // radius
+    16, // width segments
+    16 // height segments
+  )
+
+  //trying to make the speres irragular so they look more like cotton balls
+  // Make the sphere slightly irregular like a cotton ball
+  const position = cloudPuffGeometry.attributes.position;
+
+  for (let i = 0; i < position.count; i++) {
+
+    const x = position.getX(i);
+    const y = position.getY(i);
+    const z = position.getZ(i);
+
+    // Small random amount of bumpiness
+    const bump = 1 + (Math.random() - 0.5) * 0.15;
+
+    position.setXYZ(
+      i,
+      x * bump,
+      y * bump,
+      z * bump
+    );
+  }
+
+  position.needsUpdate = true;
+  cloudPuffGeometry.computeVertexNormals();
+
+  const cloudPuffMaterial = new THREE.MeshStandardMaterial({
+    color: 0xFFFFFF, // white color
+  })
+  
+  return new THREE.Mesh(
+    cloudPuffGeometry,
+    cloudPuffMaterial
+  )
+
+};
+
+//group the puffs together to make a cloud
+const cloud = createCloudPuff();
+
+// Create more cotton-ball puffs
+const puff2 = createCloudPuff();
+const puff3 = createCloudPuff();
+const puff4 = createCloudPuff();
+const puff5 = createCloudPuff();
+
+//(x, y, z) position of the cloud in the scene
+cloud.position.set(1, 1.5, 0.5); 
+puff2.position.set(-1, .5, 0);
+puff3.position.set(0.7, .5, 0);
+puff4.position.set(-0.35, 0.45, 0);
+
+
+cloud.add(
+  puff2,
+  puff3,
+  puff4,
+  puff5
+);
+
+// ====================
 // SUN
 // ====================
 
@@ -39,7 +161,7 @@ background.receiveShadow = true; //allow the background to receive shadows from 
 const sunGeometry = new THREE.CylinderGeometry(
   1, // radius top
   1, // radius bottom
-  0.03, // height(or thickness) of the cylinder
+  0.08, // height(or thickness) of the cylinder
   20 // segments (determines how smooth the cylinder will be, more segments = smoother)
 ); 
 
@@ -141,19 +263,24 @@ sunPivot.add(sunString);
 //add to the scene
 scene.add(background);
 scene.add(sunPivot);
+scene.add(cloud);
+scene.add(hill);
 scene.add(light);
 scene.add(ambientLight);
 
 //create a camera to view the scene
 const camera = new THREE.PerspectiveCamera(
-  75, // field of view
+  50, // field of view
   window.innerWidth / window.innerHeight, // aspect ratio
   0.1, // near clipping plane
   1000 // far clipping plane
 )
 
 // Move the camera in front of the background
-camera.position.z = 5;
+// camera.position.z = 5;
+camera.position.set(0, 2, 8);
+
+camera.lookAt(0, 0, 0);
 
 //renderer is what will actually draw the scene onto the screen
 //create a renderer and set its size to fill the window
@@ -179,6 +306,28 @@ document.body.appendChild(renderer.domElement);
 document.body.style.margin = '0';//no margin
 document.body.style.overflow = 'hidden';//no scrollbars
 
+
+window.addEventListener('click', (event) => {
+
+  // Convert the mouse position to Three.js coordinates
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  // Shoot a ray from the camera through the mouse position
+  raycaster.setFromCamera(mouse, camera);
+
+  // Check what the ray hit
+  const intersects = raycaster.intersectObject(sun);
+
+  if (intersects.length > 0) {
+
+    // Give the sun a little tap
+    sunSwingVelocity = 0.01;
+
+  }
+
+});
+
 //draw the scene from the perspective of the camera
 // renderer.render(scene, camera);
 
@@ -188,10 +337,24 @@ function animation() {
 
   requestAnimationFrame(animation);
 
-  sunPivot.rotation.z = 0.1;
+  const time = Date.now() * 0.001;
+
+  // Tiny natural movement
+  const idleSwing = Math.sin(time) * 0.01;
+
+  // Apply the swing velocity
+  sunSwing += sunSwingVelocity;
+
+  // Slowly reduce the velocity
+  sunSwingVelocity *= 0.98;
+
+  // Spring back toward center
+  sunSwingVelocity -= sunSwing * 0.01;
+
+  // Combine idle movement and tap movement
+  sunPivot.rotation.z = idleSwing + sunSwing;
 
   renderer.render(scene, camera);
-
 }
 
 animation();
