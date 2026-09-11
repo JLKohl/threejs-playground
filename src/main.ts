@@ -6,6 +6,7 @@ import * as THREE from 'three';
 // ====================
 let sunSwing = 0; // variable to track the swing of the sun
 let sunSwingVelocity = 0;
+const scene = new THREE.Scene();
 
 //raycaster to sense mouse movement
 const raycaster = new THREE.Raycaster();
@@ -153,6 +154,48 @@ cloud.add(
   puff5
 );
 
+
+// ====================
+// RAINING SPARKLES
+// ====================
+
+const sparkleGeometry = new THREE.OctahedronGeometry(
+  0.08
+);
+
+const sparkleMaterial = new THREE.MeshStandardMaterial({
+  color: 0xFFFFFF,
+  emissive: 0xFFFFFF,
+  emissiveIntensity: 0.1
+});
+
+const sparkles: {
+  mesh: THREE.Mesh;
+  drift: number;
+}[] = [];
+
+for (let i = 0; i < 15; i++) {
+
+  const sparkle = new THREE.Mesh(
+    sparkleGeometry,
+    sparkleMaterial
+  );
+
+  sparkle.position.set(
+    1 + (Math.random() - 0.5) * 2,
+    1.5 + (Math.random() - 0.5) * 1,
+    .09
+  );
+
+  scene.add(sparkle);
+
+  sparkles.push({
+    mesh: sparkle,
+    drift: Math.random() * Math.PI * 2
+  });
+
+}
+
 // ====================
 // SUN
 // ====================
@@ -254,7 +297,7 @@ light.shadow.radius = 10;
 //creating a scene which is 
 //the stage where all the objects will be placed and rendered.
 
-const scene = new THREE.Scene();
+
 
 //add to sunPivot
 sunPivot.add(sun);
@@ -267,6 +310,7 @@ scene.add(cloud);
 scene.add(hill);
 scene.add(light);
 scene.add(ambientLight);
+
 
 //create a camera to view the scene
 const camera = new THREE.PerspectiveCamera(
@@ -332,15 +376,44 @@ window.addEventListener('click', (event) => {
 // renderer.render(scene, camera);
 
 //changing the render to animate the scene
-
 function animation() {
 
   requestAnimationFrame(animation);
 
-  const time = Date.now() * 0.001;
+  // Move each sparkle independently
+  sparkles.forEach((sparkle) => {
 
-  // Tiny natural movement
+    // Fall downward
+    sparkle.mesh.position.y -= 0.01;
+
+    // Gently drift side to side
+    sparkle.mesh.position.x +=
+      Math.sin(Date.now() * 0.002 + sparkle.drift) * 0.003;
+
+    // Shift between pink and purple
+    const hue =
+      0.75 +
+      Math.sin(Date.now() * 0.001 + sparkle.drift) * 0.091;
+
+    sparkle.mesh.material.color.setHSL(
+      hue,
+      0.8,
+      0.7
+    );
+
+    // Reset the sparkle when it falls off the scene
+    if (sparkle.mesh.position.y < -4) {
+      sparkle.mesh.position.y = 1.5;
+    }
+
+  });
+
+
+  // Tiny natural movement for the sun
+  const time = Date.now() * 0.009;
+
   const idleSwing = Math.sin(time) * 0.01;
+
 
   // Apply the swing velocity
   sunSwing += sunSwingVelocity;
@@ -354,7 +427,14 @@ function animation() {
   // Combine idle movement and tap movement
   sunPivot.rotation.z = idleSwing + sunSwing;
 
+
+  // Draw the scene
   renderer.render(scene, camera);
+
 }
+
+animation();
+
+
 
 animation();
