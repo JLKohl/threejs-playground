@@ -434,7 +434,3 @@ function animation() {
 }
 
 animation();
-
-
-
-animation();
