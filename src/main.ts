@@ -175,6 +175,16 @@ const sparkles: {
   drift: number;
 }[] = [];
 
+// Put a sparkle at a random spot under the cloud
+function placeUnderCloud(sparkle: THREE.Mesh) {
+  sparkle.position.set(
+    1 + (Math.random() - 0.5) * 2,
+    1.5 + (Math.random() - 0.5) * 1,
+    .09
+  );
+  sparkle.visible = true;
+}
+
 for (let i = 0; i < 15; i++) {
 
   const sparkle = new THREE.Mesh(
@@ -182,11 +192,7 @@ for (let i = 0; i < 15; i++) {
     sparkleMaterial.clone()
   );
 
-  sparkle.position.set(
-    1 + (Math.random() - 0.5) * 2,
-    1.5 + (Math.random() - 0.5) * 1,
-    .09
-  );
+  placeUnderCloud(sparkle);
 
   scene.add(sparkle);
 
@@ -374,6 +380,8 @@ window.addEventListener('click', (event) => {
   const cloudIntersects = raycaster.intersectObject(cloud, true);
 
   if (cloudIntersects.length > 0) {
+    // Send down a fresh batch from the cloud
+    sparkles.forEach((sparkle) => placeUnderCloud(sparkle.mesh));
     sparklesFalling = true;
   }
 
@@ -410,9 +418,9 @@ function animation() {
       0.7
     );
 
-    // Reset the sparkle when it falls off the scene
+    // Hide the sparkle once it falls off the scene
     if (sparkle.mesh.position.y < -4) {
-      sparkle.mesh.position.y = 4;
+      sparkle.mesh.visible = false;
     }
 
   });
