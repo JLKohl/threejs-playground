@@ -162,7 +162,8 @@ const cloud2 = createCloudPuff();
 const cloud2Puff2 = createCloudPuff();
 const cloud2Puff3 = createCloudPuff();
 
-cloud2.position.set(3.6, 2.3, 0.5);
+// z is set so the back of the puffs just touches the background
+cloud2.position.set(3.6, 2.3, 0.2);
 cloud2Puff2.position.set(-0.6, 0.4, 0);
 cloud2Puff3.position.set(0.6, 0.35, 0);
 
@@ -171,7 +172,8 @@ cloud2.add(
   cloud2Puff3
 );
 
-cloud2.scale.setScalar(0.75);
+// Smaller puffs, squashed front-to-back so it sits flat on the wall
+cloud2.scale.set(0.55, 0.55, 0.35);
 
 const clouds = [cloud, cloud2];
 
