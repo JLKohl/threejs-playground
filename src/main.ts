@@ -7,6 +7,7 @@ import * as THREE from 'three';
 let sunSwing = 0; // variable to track the swing of the sun
 let sunSwingVelocity = 0;
 const scene = new THREE.Scene();
+let sparklesFalling = false;
 
 //raycaster to sense mouse movement
 const raycaster = new THREE.Raycaster();
@@ -370,6 +371,12 @@ window.addEventListener('click', (event) => {
 
   }
 
+  const cloudIntersects = raycaster.intersectObject(cloud, true);
+
+  if (cloudIntersects.length > 0) {
+    sparklesFalling = true;
+  }
+
 });
 
 //draw the scene from the perspective of the camera
@@ -379,6 +386,8 @@ window.addEventListener('click', (event) => {
 function animation() {
 
   requestAnimationFrame(animation);
+
+  if (sparklesFalling) {
 
   // Move each sparkle independently
   sparkles.forEach((sparkle) => {
@@ -403,10 +412,11 @@ function animation() {
 
     // Reset the sparkle when it falls off the scene
     if (sparkle.mesh.position.y < -4) {
-      sparkle.mesh.position.y = 1.5;
+      sparkle.mesh.position.y = 4;
     }
 
   });
+};
 
 
   // Tiny natural movement for the sun
