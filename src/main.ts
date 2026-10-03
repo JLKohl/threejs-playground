@@ -7,7 +7,6 @@ import * as THREE from 'three';
 let sunSwing = 0; // variable to track the swing of the sun
 let sunSwingVelocity = 0;
 const scene = new THREE.Scene();
-let sparklesFalling = false;
 
 //raycaster to sense mouse movement
 const raycaster = new THREE.Raycaster();
@@ -142,7 +141,7 @@ const puff4 = createCloudPuff();
 const puff5 = createCloudPuff();
 
 //(x, y, z) position of the cloud in the scene
-cloud.position.set(1, 1.5, 0.5); 
+cloud.position.set(0.6, 1.5, 0.5);
 puff2.position.set(-1, .5, 0);
 puff3.position.set(0.7, .5, 0);
 puff4.position.set(-0.35, 0.45, 0);
@@ -154,6 +153,27 @@ cloud.add(
   puff4,
   puff5
 );
+
+// Shrink the cloud a little
+cloud.scale.setScalar(0.75);
+
+// A second, smaller cloud with just 3 puffs
+const cloud2 = createCloudPuff();
+const cloud2Puff2 = createCloudPuff();
+const cloud2Puff3 = createCloudPuff();
+
+cloud2.position.set(3.6, 2.3, 0.5);
+cloud2Puff2.position.set(-0.6, 0.4, 0);
+cloud2Puff3.position.set(0.6, 0.35, 0);
+
+cloud2.add(
+  cloud2Puff2,
+  cloud2Puff3
+);
+
+cloud2.scale.setScalar(0.75);
+
+const clouds = [cloud, cloud2];
 
 
 // ====================
@@ -173,18 +193,23 @@ const sparkleMaterial = new THREE.MeshStandardMaterial({
 const sparkles: {
   mesh: THREE.Mesh;
   drift: number;
+  cloud: THREE.Mesh;
+  falling: boolean;
 }[] = [];
 
-// Put a sparkle at a random spot under the cloud
-function placeUnderCloud(sparkle: THREE.Mesh) {
+// Put a sparkle at a random spot under its cloud
+function placeUnderCloud(sparkle: THREE.Mesh, cloud: THREE.Mesh) {
+  const size = cloud.scale.x;
   sparkle.position.set(
-    1 + (Math.random() - 0.5) * 2,
-    1.5 + (Math.random() - 0.5) * 1,
+    cloud.position.x + (Math.random() - 0.5) * 2 * size,
+    cloud.position.y + (Math.random() - 0.5) * 0.5 * size,
     .09
   );
   sparkle.visible = true;
 }
 
+// Give each cloud its own batch of sparkles
+clouds.forEach((sparkleCloud) => {
 for (let i = 0; i < 15; i++) {
 
   const sparkle = new THREE.Mesh(
@@ -192,16 +217,19 @@ for (let i = 0; i < 15; i++) {
     sparkleMaterial.clone()
   );
 
-  placeUnderCloud(sparkle);
+  placeUnderCloud(sparkle, sparkleCloud);
 
   scene.add(sparkle);
 
   sparkles.push({
     mesh: sparkle,
+    cloud: sparkleCloud,
+    falling: false,
     drift: Math.random() * Math.PI * 2
   });
 
 }
+});
 
 // ====================
 // SUN
@@ -314,6 +342,7 @@ sunPivot.add(sunString);
 scene.add(background);
 scene.add(sunPivot);
 scene.add(cloud);
+scene.add(cloud2);
 scene.add(hill);
 scene.add(light);
 scene.add(ambientLight);
@@ -377,13 +406,21 @@ window.addEventListener('click', (event) => {
 
   }
 
-  const cloudIntersects = raycaster.intersectObject(cloud, true);
+  clouds.forEach((clickedCloud) => {
 
-  if (cloudIntersects.length > 0) {
-    // Send down a fresh batch from the cloud
-    sparkles.forEach((sparkle) => placeUnderCloud(sparkle.mesh));
-    sparklesFalling = true;
-  }
+    const cloudIntersects = raycaster.intersectObject(clickedCloud, true);
+
+    if (cloudIntersects.length > 0) {
+      // Send down a fresh batch from the clicked cloud
+      sparkles
+        .filter((sparkle) => sparkle.cloud === clickedCloud)
+        .forEach((sparkle) => {
+          placeUnderCloud(sparkle.mesh, clickedCloud);
+          sparkle.falling = true;
+        });
+    }
+
+  });
 
 });
 
@@ -395,10 +432,11 @@ function animation() {
 
   requestAnimationFrame(animation);
 
-  if (sparklesFalling) {
-
   // Move each sparkle independently
   sparkles.forEach((sparkle) => {
+
+    // Only move sparkles whose cloud has been clicked
+    if (!sparkle.falling) return;
 
     // Fall downward
     sparkle.mesh.position.y -= 0.01;
@@ -424,7 +462,6 @@ function animation() {
     }
 
   });
-};
 
 
   // Tiny natural movement for the sun
