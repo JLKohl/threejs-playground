@@ -179,7 +179,7 @@ for (let i = 0; i < 15; i++) {
 
   const sparkle = new THREE.Mesh(
     sparkleGeometry,
-    sparkleMaterial
+    sparkleMaterial.clone()
   );
 
   sparkle.position.set(
@@ -404,7 +404,7 @@ function animation() {
       0.75 +
       Math.sin(Date.now() * 0.001 + sparkle.drift) * 0.091;
 
-    sparkle.mesh.material.color.setHSL(
+   (sparkle.mesh.material as THREE.MeshBasicMaterial).color.setHSL(
       hue,
       0.8,
       0.7
